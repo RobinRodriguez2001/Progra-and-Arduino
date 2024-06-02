@@ -1,0 +1,5 @@
+Este programa contiene los archivos para el program de c++ hecho en visual y vinculado con base de datos mysql
+Esta hecho a base de clases y objetos siguiendo las enseñanzas previas
+El programa no correra si no se tienen todos los archivos, consta de un menu de 9 opciones en el cual en cada opcion 
+hay un crud para diferentes tablas y configuraciones, ademas de existir dos archivos maestros que interactuan con varias tablas 
+en formatos INNER JOIN 
