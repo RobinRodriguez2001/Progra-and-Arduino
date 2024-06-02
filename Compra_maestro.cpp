@@ -26,6 +26,7 @@ public:
             cin >> opc;
             switch (opc) {
             case 1:
+                system("cls");
                 cout << "Ingrese ID de Compra: ";
                 cin >> idCompra;
                 cout << "Ingrese Numero de Orden de Compra: ";
@@ -46,14 +47,18 @@ public:
                 cout << "Ingrese Precio Costo Unitario: ";
                 cin >> precioCostoUnitario;
                 comprasmaestro.crearCompraYDetalle(idCompra, noOrdenCompra, idProveedor, fechaOrden, fechaIngreso, idCompraDetalle, idProducto, cantidad, precioCostoUnitario);
+                system("pause");
+                system("cls");
                 break;
 
             case 2:
+                system("cls");
                 comprasmaestro.mostrarComprasYDetalles();
                 system("pause");
                 system("cls");
                 break;
             case 3:
+                system("cls");
                 int idCompra, noOrdenCompra, idProveedor, idCompraDetalle, idProducto, cantidad;
                 double precioCostoUnitario;
 
@@ -78,15 +83,23 @@ public:
                 cin >> precioCostoUnitario;
                 comprasmaestro.modificarCompraYDetalle(idCompra, noOrdenCompra, idProveedor, fechaOrden, fechaIngreso,
                     idCompraDetalle, idProducto, cantidad, precioCostoUnitario);
+                system("pause");
+                system("cls");
                 break;
             case 4:
+                system("cls");
                 cout << "Ingrese ID de Compra a eliminar: ";
                 cin >> idCompra;
                 comprasmaestro.eliminarCompraYDetalle(idCompra);
+                system("pause");
+                system("cls");
                 break;
 
             case 5:
+                system("cls");
                 cout << "Saliendo..." << endl;
+                system("pause");
+                system("cls");
                 return;
             default:
                 cout << "Opcion no valida, intente de nuevo." << endl;
@@ -144,12 +157,20 @@ public:
         else {
             MYSQL_RES* result = mysql_store_result(con);
             MYSQL_ROW row;
+
+            cout << "-------------------COMPRAS---------------------"<<endl;
             while ((row = mysql_fetch_row(result))) {
-                cout << "ID Compra: " << row[0] << " No. Orden Compra: " << row[1] << " ID Proveedor: " << row[2]
-                    << " Fecha Orden: " << row[3] << " Fecha Ingreso: " << row[4] << endl;
-                cout << "  ID Compra Detalle: " << row[5] << " ID Producto: " << row[6] << " Cantidad: " << row[7]
-                    << " Precio Costo Unitario: " << row[8] << endl;
-                cout << "----------------------------------------" << endl;
+
+                cout << "\nID: " << row[0] << endl;
+                cout << "No. Orden Compra: " << row[1] << endl;
+                cout << "ID Proveedor: " << row[2] << endl;
+                cout << "Fecha Orden: " << row[3] << endl;
+                cout << "Fecha Ingreso: " << row[4] << endl;
+                cout << "ID Compra Detalle: " << row[5] << endl;
+                cout << "ID Producto: " << row[6] << endl;
+                cout << "Cantidad: " << row[7] << endl;
+                cout << "Precio Costo Unitario: " << row[8] << endl;
+                cout << "\n-----------------------------------------\n";
             }
             mysql_free_result(result);
         }

@@ -14,7 +14,7 @@ private:
 
 public:
     // Constructor
-    VentaMaestro(MYSQL* connection) : con(connection), ultimaFactura(0), ultimaSerie('A') {
+    VentaMaestro(MYSQL* connection) : con(connection), ultimaFactura(1), ultimaSerie('A') {
         obtenerUltimaFacturaYSerie(); // Obtener el último número de factura y serie usados
     }
 
@@ -53,7 +53,7 @@ public:
                 cout << "Saliendo..." << endl;
                 return;
             default:
-                cout << "Opción no valida, intente de nuevo." << endl;
+                cout << "OpciOn no valida, intente de nuevo." << endl;
                 break;
             }
         }
@@ -149,6 +149,8 @@ public:
             mysql_commit(con);
             cout << "Venta y detalle de venta creados exitosamente." << endl;
             imprimirFactura(idVenta, nitCliente);
+            system("pause");
+            system("cls");
         }
         else {
             mysql_rollback(con);
@@ -192,13 +194,68 @@ public:
     }
 
     // Función para mostrar todas las ventas y sus detalles
+    void mostrarDetalleVenta(int idVenta, double& totalVenta) {
+        string query = "SELECT vd.idproducto, p.producto, vd.cantidad, vd.precio_unitario, (vd.cantidad * vd.precio_unitario) AS total "
+            "FROM ventas_detalle vd "
+            "INNER JOIN productos p ON vd.idproducto = p.idproducto "
+            "WHERE vd.idventa = " + to_string(idVenta);
+
+        if (mysql_query(con, query.c_str())) {
+            cerr << "Error al mostrar el detalle de la venta: " << mysql_error(con) << endl;
+            return;
+        }
+
+        MYSQL_RES* result = mysql_store_result(con);
+        if (result == nullptr) {
+            cerr << "Error al obtener el resultado del detalle de la venta." << endl;
+            return;
+        }
+
+        MYSQL_ROW row;
+
+        while ((row = mysql_fetch_row(result))) {
+            double cantidad = stod(row[2]); // Convertir la cantidad a double
+            double precioUnitario = stod(row[3]); // Convertir el precio unitario a double
+            double total = cantidad * precioUnitario; // Calcular el total para esta fila
+            totalVenta += total; // Acumular el total en el total de la venta
+
+            cout << left << setw(10) << row[0] // Código del producto
+                << left << setw(20) << row[1] // Descripción del producto
+                << right << setw(10) << cantidad // Cantidad
+                << right << setw(10) << fixed << setprecision(2) << precioUnitario // Precio unitario
+                << right << setw(10) << fixed << setprecision(2) << total << endl; // Total
+        }
+
+        mysql_free_result(result); // Liberar el resultado después de usarlo
+    }
+
+    void obtenerUltimaFacturaYSerie() {
+        string query = "SELECT MAX(nofactura), MAX(serie) FROM ventas";
+        if (mysql_query(con, query.c_str())) {
+            cerr << "Error al obtener la última factura y serie: " << mysql_error(con) << endl;
+            return;
+        }
+
+        MYSQL_RES* result = mysql_store_result(con);
+        if (result == nullptr) {
+            cerr << "Error al obtener el resultado de la consulta." << endl;
+            return;
+        }
+
+        MYSQL_ROW row = mysql_fetch_row(result);
+        if (row != nullptr) {
+            ultimaFactura = row[0] ? stoi(row[0]) + 1 : 1; // Incrementar el último número de factura
+            ultimaSerie = row[1] ? row[1][0] + 1 : 'A';    // Incrementar la última serie
+        }
+
+        mysql_free_result(result);
+    }
+
     void mostrarVentasYDetalles() {
-        string query = "SELECT v.idventa, v.nofactura, v.serie, DATE_FORMAT(v.fechafactura, '%d/%m/%Y'), c.nit, CONCAT(c.nombres, ' ', c.apellidos) AS nombre_completo, "
-            "vd.idventa_detalle, vd.idproducto, p.idMarca, vd.cantidad, vd.precio_unitario "
+        system("cls");
+        string query = "SELECT v.idventa, v.nofactura, v.serie, DATE_FORMAT(v.fechafactura, '%d/%m/%Y'), c.nit, CONCAT(c.nombres, ' ', c.apellidos) AS nombre_completo "
             "FROM ventas v "
-            "INNER JOIN ventas_detalle vd ON v.idventa = vd.idventa "
-            "LEFT JOIN clientes c ON v.idcliente = c.idcliente "
-            "LEFT JOIN productos p ON vd.idproducto = p.idproducto";
+            "LEFT JOIN clientes c ON v.idcliente = c.idcliente";
 
         if (mysql_query(con, query.c_str())) {
             cerr << "Error al mostrar las ventas y sus detalles: " << mysql_error(con) << endl;
@@ -211,6 +268,7 @@ public:
             }
 
             MYSQL_ROW row;
+            cout << "------------------------FACTURAS---------------------------\n";
             while ((row = mysql_fetch_row(result))) {
                 cout << "------------------------------------------------------------" << endl;
                 cout << "No Factura: " << row[1] << "  Fecha: " << row[3] << endl;
@@ -221,78 +279,41 @@ public:
                 else {
                     cout << "  Cliente: Consumidor Final" << endl;
                 }
-                cout << "Dirección: Ciudad" << endl;
+                cout << "Direccion: Ciudad" << endl;
                 cout << "------------------------------------------------------------" << endl;
 
                 cout << left << setw(10) << "Código"
-                    << left << setw(30) << "Descripción"
-                    << left << setw(10) << "Cantidad"
-                    << right << setw(10) << "Precio" << endl;
-                cout << "------------------------------------------------------------" << endl;
+                    << left << setw(20) << "Descripción"
+                    << right << setw(10) << "Cantidad"
+                    << right << setw(10) << "Precio"
+                    << right << setw(10) << "Total" << endl;
+                cout << "------------------------------------------------------------\n";
 
-                mostrarDetalleVenta(stoi(row[0])); // Mostrar detalle de la venta
+                double totalVenta = 0.0; // Variable para acumular el total de la venta
+                mostrarDetalleVenta(stoi(row[0]), totalVenta); // Mostrar detalle de la venta y calcular el total
+
+                // Imprimir el total de la venta
+                cout << "------------------------------------------------------------" << endl;
+                cout << right << setw(40) << "Total a Pagar: " << setw(10) << fixed << setprecision(2) << totalVenta << endl;
+                cout << "------------------------------------------------------------\n\n\n\n";
             }
+            system("pause");
+            system("cls");
             mysql_free_result(result); // Liberar el resultado después de usarlo
         }
     }
 
+
 private:
     // Función para mostrar el detalle de una venta específica
-    void mostrarDetalleVenta(int idVenta) {
-        string query = "SELECT vd.idproducto, p.idMarca, vd.cantidad, vd.precio_unitario "
-            "FROM ventas_detalle vd "
-            "INNER JOIN productos p ON vd.idproducto = p.idproducto "
-            "WHERE vd.idventa = " + to_string(idVenta);
-
-        if (mysql_query(con, query.c_str())) {
-            cerr << "Error al obtener el detalle de la venta: " << mysql_error(con) << endl;
-            return;
-        }
-
-        MYSQL_RES* result = mysql_store_result(con);
-        if (result == nullptr) {
-            cerr << "Error al obtener el resultado de la consulta." << endl;
-            return;
-        }
-
-        // Imprimir detalle de los productos
-        while (MYSQL_ROW row = mysql_fetch_row(result)) {
-            cout << left << setw(10) << row[0]   // ID del producto
-                << left << setw(30) << obtenerNombreProducto(stoi(row[0]))   // Nombre del producto
-                << left << setw(10) << row[2]   // Cantidad
-                << right << setw(10) << "Q " << fixed << setprecision(2) << stod( row[3]) << endl; // Precio unitario
-        }
-
-        mysql_free_result(result); // Liberar el resultado después de usarlo
-    }
-
-    // Función para obtener el nombre de un producto dado su ID
-    string obtenerNombreProducto(int idProducto) {
-        string query = "SELECT producto FROM productos WHERE idproducto = " + to_string(idProducto);
-        if (mysql_query(con, query.c_str())) {
-            cerr << "Error al obtener el nombre del producto: " << mysql_error(con) << endl;
-            return "Nombre no encontrado";
-        }
-
-        MYSQL_RES* result = mysql_store_result(con);
-        if (result == nullptr) {
-            cerr << "Error al obtener el resultado de la consulta." << endl;
-            return "Nombre no encontrado";
-        }
-
-        MYSQL_ROW row = mysql_fetch_row(result);
-        if (row == nullptr) {
-            cerr << "Producto no encontrado." << endl;
-            return "Nombre no encontrado";
-        }
-
-        string nombre = row[0];
-        mysql_free_result(result); // Liberar el resultado después de usarlo
-        return nombre;
-    }
 
     // Función para obtener o registrar un cliente por su NIT
     int obtenerORegistrarCliente(const string& nitCliente) {
+        // Verificar si el cliente es "Consumidor Final"
+        if (nitCliente == "CF") {
+            return 36; // Asumimos que el ID 0 está reservado para "Consumidor Final"
+        }
+
         // Verificar si el cliente existe
         string query = "SELECT idcliente FROM clientes WHERE nit = '" + nitCliente + "'";
         if (mysql_query(con, query.c_str())) {
@@ -321,17 +342,30 @@ private:
         cin >> respuesta;
 
         if (toupper(respuesta) == 'S') {
-            string nombres, apellidos;
+            string nombres, apellidos, telefono, correo_electronico;
+            int genero;
+            string fechaingreso;
+
             cin.ignore(); // Limpiar el buffer del teclado
             cout << "Ingrese los nombres del cliente: ";
             getline(cin, nombres);
             cout << "Ingrese los apellidos del cliente: ";
             getline(cin, apellidos);
+            cout << "Ingrese el género del cliente (0 para masculino, 1 para femenino): ";
+            cin >> genero;
+            cin.ignore();
+            cout << "Ingrese el teléfono del cliente: ";
+            getline(cin, telefono);
+            cout << "Ingrese el correo electrónico del cliente: ";
+            getline(cin, correo_electronico);
+            cout << "Ingrese la fecha de ingreso del cliente (YYYY-MM-DD HH:MM:SS): ";
+            getline(cin, fechaingreso);
 
             // Insertar el nuevo cliente en la base de datos
             ostringstream queryInsertar;
-            queryInsertar << "INSERT INTO clientes (idcliente, nit, nombres, apellidos) "
-                << "VALUES (NULL, '" << nitCliente << "', '" << nombres << "', '" << apellidos << "')";
+            queryInsertar << "INSERT INTO clientes (nit, nombres, apellidos, genero, telefono, correo_electronico, fechaingreso) "
+                << "VALUES ('" << nitCliente << "', '" << nombres << "', '" << apellidos << "', "
+                << genero << ", '" << telefono << "', '" << correo_electronico << "', '" << fechaingreso << "')";
 
             if (mysql_query(con, queryInsertar.str().c_str())) {
                 cerr << "Error al insertar el nuevo cliente: " << mysql_error(con) << endl;
@@ -349,8 +383,9 @@ private:
 
     // Función para imprimir la factura de una venta
     void imprimirFactura(int idVenta, const string& nitCliente) {
-        string query = "SELECT v.nofactura, v.serie, DATE_FORMAT(v.fechafactura, '%d/%m/%Y'), c.nit, CONCAT(c.nombres, ' ', c.apellidos) AS nombre_completo, "
-            "p.producto, vd.cantidad, vd.precio_unitario, (vd.cantidad * vd.precio_unitario) AS total "
+        string query = "SELECT v.nofactura, v.serie, DATE_FORMAT(v.fechafactura, '%d/%m/%Y'), c.nit, "
+            "CONCAT(c.nombres, ' ', c.apellidos) AS nombre_completo, "
+            "p.idproducto, p.producto, vd.cantidad, vd.precio_unitario, (vd.cantidad * vd.precio_unitario) AS total "
             "FROM ventas v "
             "INNER JOIN ventas_detalle vd ON v.idventa = vd.idventa "
             "LEFT JOIN clientes c ON v.idcliente = c.idcliente "
@@ -370,57 +405,52 @@ private:
 
         // Imprimir la cabecera de la factura
         MYSQL_ROW row = mysql_fetch_row(result);
-        cout << "------------------------------------------------------------" << endl;
+        if (row == nullptr) {
+            cerr << "No se encontraron resultados para la venta con ID: " << idVenta << endl;
+            mysql_free_result(result);
+            return;
+        }
+
+        cout << "----------------------------------------------------------------------" << endl;
         cout << "Factura No.: " << row[0] << " Serie: " << row[1] << " Fecha: " << row[2] << endl;
-        cout << "Nit: " << row[3];
-        if (row[4] != nullptr) {
+        cout << "Nit: " << (row[3] ? row[3] : "CF");
+        if (row[4] != nullptr && strcmp(row[4], "") != 0) {
             cout << "  Cliente: " << row[4] << endl;
         }
         else {
             cout << "  Cliente: Consumidor Final" << endl;
         }
-        cout << "Dirección: Ciudad" << endl;
-        cout << "------------------------------------------------------------" << endl;
+        cout << "DirecciOn: Ciudad" << endl;
+        cout << "----------------------------------------------------------------------" << endl;
 
-        cout << left << setw(10) << "Código"
-            << left << setw(30) << "Descripción"
+        cout << left << setw(10) << "COdigo"
+            << left << setw(30) << "DescripciOn"
             << left << setw(10) << "Cantidad"
-            << right << setw(10) << "Precio" << endl;
-        cout << "------------------------------------------------------------" << endl;
+            << right << setw(10) << "Precio"
+            << right << setw(10) << "Total" << endl;
+        cout << "----------------------------------------------------------------------" << endl;
 
-        // Imprimir el detalle de la factura
+        double totalPagar = 0.0;
+
         do {
-            cout << left << setw(10) << row[5]     // Nombre del producto
-                << left << setw(30) << row[6]     // Cantidad
-                << left << setw(10) << row[7]     // Precio unitario
-                << right << setw(10) << row[8] << endl; // Total
+            int codigo = atoi(row[5]);
+            string descripcion = row[6];
+            int cantidad = atoi(row[7]);
+            double precio = atof(row[8]);
+            double total = cantidad * precio;
+
+            totalPagar += total;
+
+            cout << left << setw(10) << codigo
+                << left << setw(30) << descripcion
+                << left << setw(10) << cantidad
+                << right << setw(10) << fixed << setprecision(2) << precio
+                << right << setw(10) << fixed << setprecision(2) << total << endl;
         } while (row = mysql_fetch_row(result));
 
         cout << "------------------------------------------------------------" << endl;
-
-        mysql_free_result(result); // Liberar el resultado después de usarlo
-    }
-
-    // Función para obtener el último número de factura y serie usados
-    void obtenerUltimaFacturaYSerie() {
-        string query = "SELECT nofactura, serie FROM ventas ORDER BY idventa DESC LIMIT 1";
-
-        if (mysql_query(con, query.c_str())) {
-            cerr << "Error al obtener la última factura y serie: " << mysql_error(con) << endl;
-            return;
-        }
-
-        MYSQL_RES* result = mysql_store_result(con);
-        if (result == nullptr) {
-            cerr << "Error al obtener el resultado de la consulta." << endl;
-            return;
-        }
-
-        MYSQL_ROW row = mysql_fetch_row(result);
-        if (row != nullptr) {
-            ultimaFactura = stoi(row[0]);
-            ultimaSerie = row[1][0]; // La serie es un char, se toma el primer caracter
-        }
+        cout << right << setw(60) << "Total a Pagar: " << setw(10) << fixed << setprecision(2) << totalPagar << endl;
+        cout << "------------------------------------------------------------" << endl;
 
         mysql_free_result(result); // Liberar el resultado después de usarlo
     }
